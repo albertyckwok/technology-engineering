@@ -459,7 +459,9 @@ if __name__ == '__main__':
                                 namespace=namespace, bucket=bucket, prefix=prefix,  oci_config=config, service_endpoint=service_endpoint)
     
     
-    vision_private_endpoint_ocid = stream_videos.create_private_endpoint()
+    #The following failed so just hard coded for now
+    #vision_private_endpoint_ocid = stream_videos.create_private_endpoint()
+    vision_private_endpoint_ocid = "ocid1.aivisionprivateendpoint.oc1..aaaaaaaag3dw544xovwvef4dnlzj2cvtcehy6rge7k2gamhlkpsliohfbbva"
     logger.info("Private Endpoint created successfully %s", vision_private_endpoint_ocid)
     
     stream_source_ocid = stream_videos.create_Stream_Source(vision_private_endpoint_ocid)
@@ -474,7 +476,9 @@ if __name__ == '__main__':
     start_stream_job = stream_videos.start_Stream_Job(stream_job_ocid)
     logger.info("Started Stream Job successfully %s", stream_job_ocid)
 
-    time.sleep(60)
+    #time.sleep(60)
+
+    input("Press Enter to continue...")
 
     #-----------------------------End the stream (comment out to keep the stream running) -------------------------------------------------#
 
@@ -493,5 +497,6 @@ if __name__ == '__main__':
     delete_stream_source = stream_videos.delete_Stream_Source(stream_source_ocid)
     logger.info("Stream Source deleted successfully %s", stream_source_ocid)
 
-    delete_Vision_Private_Endpoint = stream_videos.delete_Vision_Private_Endpoint(vision_private_endpoint_ocid)
-    logger.info("Vision Private Endpoint deleted successfully %s", vision_private_endpoint_ocid)
+    #Hardcode PE so skip the delete for now
+    #delete_Vision_Private_Endpoint = stream_videos.delete_Vision_Private_Endpoint(vision_private_endpoint_ocid)
+    #logger.info("Vision Private Endpoint deleted successfully %s", vision_private_endpoint_ocid)
