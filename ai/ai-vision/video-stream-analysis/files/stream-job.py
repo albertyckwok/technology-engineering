@@ -277,6 +277,7 @@ class StreamVideo:
                 return stream_job_ocid
             elif start_stream_job_work_request.data.status == 'FAILED':
                 logger.error("starting of stream job failed %s",start_stream_job_response.headers)
+                print(start_stream_job_work_request)
                 sys.exit()
             elif time.time() - start_time > timeout_seconds:
                 raise TimeoutError("Operation timed out after 10 minutes.")

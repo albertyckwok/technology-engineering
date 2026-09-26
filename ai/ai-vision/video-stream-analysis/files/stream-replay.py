@@ -281,8 +281,23 @@ with col1:
     st.session_state.prefix = st.text_input("Prefix")
     st.session_state.os_namespace = st.text_input("Object Storage Namespace")
 
-    replay_date = st.date_input("Replay Start Date", value=datetime.now(browser_tz).date())
-    replay_time = st.time_input("Replay Start Time (Browser timezone)")
+    now_local = datetime.now(browser_tz)
+    if "replay_date" not in st.session_state:
+        st.session_state.replay_date = now_local.date()
+    if "replay_time" not in st.session_state:
+        st.session_state.replay_time = now_local.time().replace(microsecond=0)
+
+    if st.button("Set to now", help="Set the replay date and time to the current browser-local time"):
+        now_local = datetime.now(browser_tz)
+        st.session_state.replay_date = now_local.date()
+        st.session_state.replay_time = now_local.time().replace(microsecond=0)
+
+    replay_date = st.date_input("Replay Start Date", key="replay_date")
+    replay_time = st.time_input(
+        "Replay Start Time (Browser timezone)",
+        key="replay_time",
+        step=timedelta(minutes=1)
+    )
     replay_start_local = datetime.combine(replay_date, replay_time, tzinfo=browser_tz)
     replay_start = replay_start_local.astimezone(timezone.utc)
     st.session_state.replay_start_timestamp_ns = datetime_to_unix_ns(replay_start)
