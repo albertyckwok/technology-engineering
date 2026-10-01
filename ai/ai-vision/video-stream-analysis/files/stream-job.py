@@ -44,18 +44,13 @@ class StreamVideo:
     Class to use all functionalities of Streaming Service
     """
 
-    def __init__(self,compartment_id: str,subnet_id: str,camera_url: str, namespace: str,bucket: str,prefix: str, oci_config: dict, service_endpoint: str):
+    def __init__(self,compartment_id: str,subnet_id: str,camera_url: str, namespace: str,bucket: str,prefix: str, oci_config: dict, service_endpoint: str, signer):
         self.compartment_id = compartment_id
         self.camera_url = camera_url
         self.namespace = namespace
         self.bucket = bucket
         self.prefix = prefix
         self.subnet_id = subnet_id
-        token_file = oci_config['security_token_file']
-        with open(token_file, 'r') as f:
-             token = f.read()
-        private_key = oci.signer.load_private_key_from_file(config['key_file'])
-        signer = oci.auth.signers.SecurityTokenSigner(token, private_key)
         self.client = oci.ai_vision.AIServiceVisionClient(
             config=oci_config, signer=signer,
             service_endpoint=service_endpoint)
@@ -446,18 +441,14 @@ if __name__ == '__main__':
     prefix = args.prefix
     
 
-    try:
-        config = oci.config.from_file(
-            '~/.oci/config', profile_name="DEFAULT")
-    except oci.exceptions.ConfigFileNotFound as err:
-        logger.error(err)
-        sys.exit()
+    signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+    config = {"region": signer.region}
     
     service_endpoint = \
         f"https://vision.aiservice.{config.get('region')}.oci.oraclecloud.com"
     
     stream_videos = StreamVideo(compartment_id=compartment_id, subnet_id=subnet_id, camera_url=camera_url, 
-                                namespace=namespace, bucket=bucket, prefix=prefix,  oci_config=config, service_endpoint=service_endpoint)
+                                namespace=namespace, bucket=bucket, prefix=prefix,  oci_config=config, service_endpoint=service_endpoint, signer=signer)
     
     
     #The following failed so just hard coded for now

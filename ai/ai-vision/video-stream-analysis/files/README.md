@@ -23,6 +23,16 @@ Before you start, ensure you have:
   - Object Storage  
 - An Object Storage bucket + namespace  
 - A local Python environment with required libraries  
+- You need to set the following dynamic groups and policy otherwise revert to the previous version of using token instead.
+  1. Dynamic group
+      ```
+      Any { instance.compartment.id = '<compartment_ocid>' }
+      ```
+  2. Policy to allow Dynamic group to access API and resources
+      ```
+      Allow dynamic-group <dynamic-group-name> to manage ai-service-vision-family in compartment <vision-compartment>
+      Allow dynamic-group <dynamic-group-name> to read objects in compartment <bucket-compartment>
+      ```
 
 ---
 

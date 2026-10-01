@@ -56,9 +56,9 @@ for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-# OCI Config
-oci_config = oci.config.from_file("~/.oci/config", profile_name="DEFAULT")
-service_endpoint = f"https://vision.aiservice.{oci_config.get('region')}.oci.oraclecloud.com"
+# OCI Instance Principal
+oci_signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
+oci_config = {"region": oci_signer.region}
 
 # ----------------- Helpers -----------------
 def get_base64_image(image_path):
@@ -318,20 +318,14 @@ st.markdown("---")
 chart_placeholder = st.empty()
 
 try:
-    token_file = oci_config["security_token_file"]
-    with open(token_file, "r") as f:
-        token = f.read()
-
-    private_key = oci.signer.load_private_key_from_file(oci_config["key_file"])
-    config = oci.config.from_file()
-    signer = oci.auth.signers.SecurityTokenSigner(token, private_key)
-    vision_client = oci.ai_vision.AIServiceVisionClient(config=config, signer=signer, service_endpoint=service_endpoint)
-
     if st.session_state.streaming:
         if not all([st.session_state.bucket, st.session_state.prefix, st.session_state.os_namespace]):
             st.error("Please provide all required Stream Job and Object Storage details")
         else:
-            storage_client = oci.object_storage.ObjectStorageClient(config, signer=signer)
+            storage_client = oci.object_storage.ObjectStorageClient(
+                oci_config,
+                signer=oci_signer
+            )
             consume_stream(
                 st.session_state.os_namespace,
                 st.session_state.bucket,
