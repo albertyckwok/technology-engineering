@@ -451,9 +451,13 @@ if __name__ == '__main__':
                                 namespace=namespace, bucket=bucket, prefix=prefix,  oci_config=config, service_endpoint=service_endpoint, signer=signer)
     
     
-    #The following failed so just hard coded for now
-    #vision_private_endpoint_ocid = stream_videos.create_private_endpoint()
-    vision_private_endpoint_ocid = "ocid1.aivisionprivateendpoint.oc1..aaaaaaaag3dw544xovwvef4dnlzj2cvtcehy6rge7k2gamhlkpsliohfbbva"
+    #Use exisitng PE if exist otherwise create one
+    visPEs = stream_videos.client.list_vision_private_endpoints(compartment_id=compartment_id, lifecycle_state="ACTIVE").data
+    if visPEs:
+        vision_private_endpoint_ocid = visPEs.items[0].id
+    else:
+        vision_private_endpoint_ocid = stream_videos.create_private_endpoint()
+    #vision_private_endpoint_ocid = "ocid1.aivisionprivateendpoint.oc1..aaaaaaaag3dw544xovwvef4dnlzj2cvtcehy6rge7k2gamhlkpsliohfbbva"
     logger.info("Private Endpoint created successfully %s", vision_private_endpoint_ocid)
     
     stream_source_ocid = stream_videos.create_Stream_Source(vision_private_endpoint_ocid)
@@ -489,6 +493,6 @@ if __name__ == '__main__':
     delete_stream_source = stream_videos.delete_Stream_Source(stream_source_ocid)
     logger.info("Stream Source deleted successfully %s", stream_source_ocid)
 
-    #Hardcode PE so skip the delete for now
+    #Don't delete PE as it is re-usable
     #delete_Vision_Private_Endpoint = stream_videos.delete_Vision_Private_Endpoint(vision_private_endpoint_ocid)
     #logger.info("Vision Private Endpoint deleted successfully %s", vision_private_endpoint_ocid)
