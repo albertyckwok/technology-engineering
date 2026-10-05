@@ -39,6 +39,8 @@ from glob import glob
 
 import oci
 
+logger = logging.getLogger(__name__)
+
 class StreamVideo:
     """
     Class to use all functionalities of Streaming Service
@@ -133,7 +135,7 @@ class StreamVideo:
         self.rtsp_source_details.camera_url = self.camera_url
         self.rtsp_source_details.stream_network_access_details = self.private_stream_network_access_deatils
         
-        self.create_stream_source_details.compartment_id = compartment_id
+        self.create_stream_source_details.compartment_id = self.compartment_id
         self.create_stream_source_details.display_name = display_name
         self.create_stream_source_details.stream_source_details = self.rtsp_source_details
 
@@ -148,6 +150,7 @@ class StreamVideo:
             logger.info("get current status of work request id %s for Stream Source Creation %s",create_stream_source_response.headers['opc-work-request-id'], create_stream_source_work_request.data.status)
 
             if create_stream_source_work_request.data.status  == 'SUCCEEDED':
+                logger.info("Stream Source created successfully %s", create_stream_source_response.data.id)
                 return create_stream_source_response.data.id
             elif create_stream_source_work_request.data.status == 'FAILED':
                 logger.error("creation of stream source failed %s",create_stream_source_response.headers)
@@ -216,6 +219,7 @@ class StreamVideo:
             logger.info("get current status of work request id %s for Stream job Creation %s", create_stream_job_response.headers['opc-work-request-id'], create_stream_job_work_request.data.status)
 
             if create_stream_job_work_request.data.status  == 'SUCCEEDED' :
+                logger.info("Stream Job created successfully %s", create_stream_job_response.data.id)
                 return create_stream_job_response.data.id
             elif create_stream_job_work_request.data.status == 'FAILED':
                 logger.error("creation of stream job failed %s",create_stream_job_response.headers)
@@ -243,6 +247,7 @@ class StreamVideo:
             logger.info("get current status of work request id %s for stream group Creation %s",create_stream_group_response.headers['opc-work-request-id'], create_stream_group_work_request.data.status)
 
             if create_stream_group_work_request.data.status  == 'SUCCEEDED' :
+                logger.info("Stream Group created successfully %s", create_stream_group_response.data.id)
                 return create_stream_group_response.data.id
             elif create_stream_group_work_request.data.status == 'FAILED':
                 logger.error("creation of stream job failed %s",create_stream_group_response.headers)
@@ -269,6 +274,7 @@ class StreamVideo:
             logger.info("get current status of work request id %s for starting stream job %s", start_stream_job_response.headers['opc-work-request-id'], start_stream_job_work_request.data.status)
             
             if start_stream_job_work_request.data.status  == 'SUCCEEDED' :
+                logger.info("Started Stream Job successfully %s", stream_job_ocid)
                 return stream_job_ocid
             elif start_stream_job_work_request.data.status == 'FAILED':
                 logger.error("starting of stream job failed %s",start_stream_job_response.headers)

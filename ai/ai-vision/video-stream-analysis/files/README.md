@@ -122,6 +122,30 @@ Click **Consume Stream** to view annotated video frames.
 - Delete resources using the provided cleanup cells in the notebook.  
 - You may store OCIDs to reuse the same resources without recreating them.  
 
+The following are a few OCI CLI command to clean up the resources created by this code:
+```bash
+myCompOCID='<yourCompartmentOCID_ocid1.aivisionstreamjob.oc1..aaa>'
+oci ai-vision stream-job-collection list-stream-jobs -c $myCompOCID --query 'data.items[].id' --all |grep ocid1|sed -e 's/"//g' -e 's/ //g' -e 's/,//g'
+
+ocid=
+for ocid in `cat`; do
+oci ai-vision stream-job stop --stream-job-id $ocid --wait-for-state SUCCEEDED
+oci ai-vision stream-job delete --stream-job-id $ocid --wait-for-state SUCCEEDED --force
+done
+oci ai-vision stream-group-collection list-stream-groups -c $myCompOCID --query 'data.items[].[id, "stream-source-ids"]' --all |grep ocid1|sed -e 's/"//g' -e 's/ //g' -e 's/,//g'
+oci ai-vision stream-group-collection list-stream-groups -c $myCompOCID  --query 'data.items[].id' --all |grep ocid1|sed -e 's/"//g' -e 's/ //g' -e 's/,//g'
+ocid=
+for ocid in `cat`; do
+oci ai-vision stream-group delete --stream-group-id $ocid --wait-for-state SUCCEEDED --force
+done
+oci ai-vision stream-source-collection list-stream-sources -c $myCompOCID  --query 'data.items[].id' --all |grep ocid1|sed -e 's/"//g' -e 's/ //g' -e 's/,//g'
+ocid=
+for ocid in `cat`; do
+oci ai-vision stream-source delete --stream-source-id $ocid --wait-for-state SUCCEEDED --force
+done
+
+```
+
 ---
 
 ##  6. Troubleshooting
