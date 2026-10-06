@@ -299,7 +299,7 @@ with col1:
 
     camera_options = [
         ("Audience@SCA Showcase", "rtsp://10.25.5.15:554/profile2/media.smp"),
-        ("Podium@SCA Showcase", "rtsp://10.25.5.15:554/profile2/media.smp"),
+        ("Podium@SCA Showcase", "rtsp://10.25.4.51/axis-media/media.amp"),
         ("Other", ""),
     ]
     camera_choice = st.selectbox(
@@ -320,8 +320,15 @@ with col1:
     generated_prefix = f"{camera_choice[0][0].upper()}{current_date}"
     if camera_choice[0] == "Other":
         generated_prefix = f"C{current_date}"
-    if "prefix" not in st.session_state or st.session_state.prefix == "" or st.session_state.prefix != generated_prefix:
+
+    if "prefix" not in st.session_state:
         st.session_state.prefix = generated_prefix
+    elif st.session_state.get("last_camera_name") != camera_choice[0]:
+        if st.session_state.prefix == st.session_state.get("last_generated_prefix", "") or st.session_state.prefix == "":
+            st.session_state.prefix = generated_prefix
+
+    st.session_state.last_camera_name = camera_choice[0]
+    st.session_state.last_generated_prefix = generated_prefix
     st.text_input("Prefix", key="prefix")
 
     st.session_state.mode = st.radio(
