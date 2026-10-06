@@ -59,7 +59,8 @@ defaults = {
     "occupancy_history": [],
     "object_counts": {},
     "mode": DetectionMode.FACE.value,  # default
-    "start_stop_label": "▶️ Start Consumption"
+    "start_stop_label": "▶️ Start Consumption",
+    "replay_tz": ""
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -309,7 +310,7 @@ with col1:
     st.session_state.prefix = st.text_input("Prefix")
     st.text_input("Object Storage Namespace", key="os_namespace")
 
-    start_job_column, stop_job_column = st.columns(2)
+    start_job_column, stop_job_column, exit_job_column = st.columns(3)
     if start_job_column.button("Start stream job", use_container_width=True):
         required_job_inputs = [
             st.session_state.compartment_id,
@@ -393,22 +394,84 @@ with col1:
             except (Exception, SystemExit) as error:
                 st.error(f"Could not stop stream job: {error}")
 
+    if exit_job_column.button("Exit", use_container_width=True):
+        stream_job_id = st.session_state.stream_job_ocid
+        stream_group_id = st.session_state.stream_group_ocid
+        stream_source_id = st.session_state.stream_source_ocid
+
+        if not any([stream_job_id, stream_group_id, stream_source_id]):
+            st.warning("No active stream resources to clean up.")
+        else:
+            try:
+                with st.spinner("Stopping and deleting the OCI Vision stream resources..."):
+                    stream_video = stream_job_module.StreamVideo(
+                        compartment_id=st.session_state.compartment_id,
+                        subnet_id=st.session_state.subnet_id,
+                        camera_url=st.session_state.camera_url,
+                        namespace=st.session_state.os_namespace,
+                        bucket=st.session_state.bucket,
+                        prefix=st.session_state.prefix,
+                        oci_config=oci_config,
+                        service_endpoint=service_endpoint,
+                        signer=oci_signer,
+                    )
+
+                    if stream_job_id:
+                        stream_video.stop_Stream_Job(stream_job_id)
+                        logger.info("Stream Job stopped successfully %s", stream_job_id)
+                        stream_video.delete_Stream_Job(stream_job_id)
+                        logger.info("Stream Job deleted successfully %s", stream_job_id)
+                    if stream_group_id:
+                        stream_video.delete_Stream_Group(stream_group_id)
+                        logger.info("Stream Group deleted successfully %s", stream_group_id)
+                    if stream_source_id:
+                        stream_video.delete_Stream_Source(stream_source_id)
+                        logger.info("Stream Source deleted successfully %s", stream_source_id)
+
+                    st.session_state.stream_job_ocid = ""
+                    st.session_state.stream_group_ocid = ""
+                    st.session_state.stream_source_ocid = ""
+                    st.session_state.vision_private_endpoint_ocid = ""
+
+                st.success("Stream resources cleaned up. Closing the browser session...")
+                st.components.v1.html(
+                    """
+                    <script>
+                        try { window.close(); } catch (e) {}
+                        try { window.open('', '_self').close(); } catch (e) {}
+                    </script>
+                    """,
+                    height=0,
+                )
+            except (Exception, SystemExit) as error:
+                st.error(f"Could not exit cleanly: {error}")
+
     now_local = datetime.now(browser_tz)
-    if "replay_date" not in st.session_state:
+    if (
+        st.session_state.get("replay_tz") != browser_timezone
+        or "replay_date" not in st.session_state
+        or "replay_time" not in st.session_state
+    ):
+        st.session_state.replay_tz = browser_timezone
         st.session_state.replay_date = now_local.date()
-    if "replay_time" not in st.session_state:
         st.session_state.replay_time = now_local.time().replace(microsecond=0)
 
     if st.button("Set to now", help="Set the replay date and time to the current browser-local time"):
         now_local = datetime.now(browser_tz)
         st.session_state.replay_date = now_local.date()
         st.session_state.replay_time = now_local.time().replace(microsecond=0)
+        st.session_state.replay_tz = browser_timezone
 
-    replay_date = st.date_input("Replay Start Date", key="replay_date")
+    replay_date = st.date_input(
+        "Replay Start Date",
+        key="replay_date",
+        value=st.session_state.replay_date,
+    )
     replay_time = st.time_input(
         "Replay Start Time (Browser timezone)",
         key="replay_time",
-        step=timedelta(minutes=1)
+        value=st.session_state.replay_time,
+        step=timedelta(minutes=1),
     )
     replay_start_local = datetime.combine(replay_date, replay_time, tzinfo=browser_tz)
     replay_start = replay_start_local.astimezone(timezone.utc)
