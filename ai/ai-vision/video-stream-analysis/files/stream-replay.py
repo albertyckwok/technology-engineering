@@ -297,8 +297,24 @@ with col1:
 
     st.caption(f"Browser timezone: {browser_timezone}")
 
-    st.text_input("Camera URL", key="camera_url")
-    st.session_state.prefix = st.text_input("Prefix")
+    camera_options = [
+        ("Audience@SCA Showcase", "rtsp://10.25.5.15:554/profile2/media.smp"),
+        ("Podium@SCA Showcase", "rtsp://10.25.5.15:554/profile2/media.smp"),
+    ]
+    camera_choice = st.selectbox(
+        "Camera URL",
+        options=camera_options,
+        format_func=lambda option: option[0],
+        index=0,
+        help="Choose the camera feed to use for the stream job."
+    )
+    st.session_state.camera_url = camera_choice[1]
+
+    current_date = datetime.now(browser_tz).strftime('%Y%m%d')
+    generated_prefix = f"{camera_choice[0][0].upper()}{current_date}"
+    if "prefix" not in st.session_state or st.session_state.prefix == "" or st.session_state.prefix.split("-")[0] != generated_prefix:
+        st.session_state.prefix = generated_prefix
+    st.text_input("Prefix", key="prefix")
 
     st.session_state.mode = st.radio(
         "Detection Mode",
