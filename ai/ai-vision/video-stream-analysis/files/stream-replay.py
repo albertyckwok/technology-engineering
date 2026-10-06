@@ -300,19 +300,27 @@ with col1:
     camera_options = [
         ("Audience@SCA Showcase", "rtsp://10.25.5.15:554/profile2/media.smp"),
         ("Podium@SCA Showcase", "rtsp://10.25.5.15:554/profile2/media.smp"),
+        ("Other", ""),
     ]
     camera_choice = st.selectbox(
         "Camera URL",
         options=camera_options,
         format_func=lambda option: option[0],
         index=0,
-        help="Choose the camera feed to use for the stream job."
+        help="Choose a preset camera feed or enter a custom URL."
     )
-    st.session_state.camera_url = camera_choice[1]
+
+    if camera_choice[0] == "Other":
+        custom_camera_url = st.text_input("Custom Camera URL", value=st.session_state.get("camera_url", ""), help="Enter a custom RTSP or camera URL.")
+        st.session_state.camera_url = custom_camera_url
+    else:
+        st.session_state.camera_url = camera_choice[1]
 
     current_date = datetime.now(browser_tz).strftime('%Y%m%d')
     generated_prefix = f"{camera_choice[0][0].upper()}{current_date}"
-    if "prefix" not in st.session_state or st.session_state.prefix == "" or st.session_state.prefix.split("-")[0] != generated_prefix:
+    if camera_choice[0] == "Other":
+        generated_prefix = f"C{current_date}"
+    if "prefix" not in st.session_state or st.session_state.prefix == "" or st.session_state.prefix != generated_prefix:
         st.session_state.prefix = generated_prefix
     st.text_input("Prefix", key="prefix")
 
