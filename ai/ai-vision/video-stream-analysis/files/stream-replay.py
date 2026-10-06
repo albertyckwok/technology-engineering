@@ -280,7 +280,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-st.markdown("<br><br><br>", unsafe_allow_html=True)
+st.markdown("<br>", unsafe_allow_html=True)
 
 col1, col2 = st.columns([1, 3])
 
@@ -297,6 +297,9 @@ with col1:
 
     st.caption(f"Browser timezone: {browser_timezone}")
 
+    st.text_input("Camera URL", key="camera_url")
+    st.session_state.prefix = st.text_input("Prefix")
+
     st.session_state.mode = st.radio(
         "Detection Mode",
         [DetectionMode.OBJECT.value, DetectionMode.FACE.value],
@@ -305,192 +308,200 @@ with col1:
 
     st.text_input("Compartment OCID", key="compartment_id")
     st.text_input("Subnet OCID", key="subnet_id")
-    st.text_input("Camera URL", key="camera_url")
     st.text_input("Bucket Name", key="bucket")
-    st.session_state.prefix = st.text_input("Prefix")
     st.text_input("Object Storage Namespace", key="os_namespace")
 
-    start_job_column, stop_job_column, exit_job_column = st.columns(3)
-    if start_job_column.button("Start stream job", use_container_width=True):
-        required_job_inputs = [
-            st.session_state.compartment_id,
-            st.session_state.subnet_id,
-            st.session_state.camera_url,
-            st.session_state.os_namespace,
-            st.session_state.bucket,
-        ]
-        if not all(required_job_inputs):
-            st.error("Provide the compartment, subnet, camera URL, namespace, and bucket to create a stream job.")
-        else:
-            try:
-                with st.spinner("Creating or starting the OCI Vision stream job..."):
-                    stream_video = stream_job_module.StreamVideo(
-                        compartment_id=st.session_state.compartment_id,
-                        subnet_id=st.session_state.subnet_id,
-                        camera_url=st.session_state.camera_url,
-                        namespace=st.session_state.os_namespace,
-                        bucket=st.session_state.bucket,
-                        prefix=st.session_state.prefix,
-                        oci_config=oci_config,
-                        service_endpoint=service_endpoint,
-                        signer=oci_signer,
-                    )
-
-                    if not st.session_state.vision_private_endpoint_ocid:
-                        active_endpoints = stream_video.client.list_vision_private_endpoints(
-                            compartment_id=st.session_state.compartment_id,
-                            lifecycle_state="ACTIVE",
-                        ).data.items
-                        matching_endpoint = next(
-                            (endpoint for endpoint in active_endpoints
-                             if endpoint.subnet_id == st.session_state.subnet_id),
-                            None,
-                        )
-                        st.session_state.vision_private_endpoint_ocid = (
-                            matching_endpoint.id if matching_endpoint
-                            else stream_video.create_private_endpoint()
-                        )
-
-                    if not st.session_state.stream_source_ocid:
-                        st.session_state.stream_source_ocid = stream_video.create_Stream_Source(
-                            st.session_state.vision_private_endpoint_ocid
-                        )
-                    if not st.session_state.stream_job_ocid:
-                        st.session_state.stream_job_ocid = stream_video.create_Stream_Job(
-                            st.session_state.stream_source_ocid
-                        )
-                    if not st.session_state.stream_group_ocid:
-                        st.session_state.stream_group_ocid = stream_video.create_Stream_Group(
-                            st.session_state.stream_source_ocid
-                        )
-                    stream_job_id = st.session_state.stream_job_ocid
-
-                    stream_video.start_Stream_Job(stream_job_id)
-                    st.session_state.stream_job_ocid = stream_job_id
-                st.success(f"Stream job started: {st.session_state.stream_job_ocid}")
-            except (Exception, SystemExit) as error:
-                st.error(f"Could not start stream job: {error}")
-
-    if stop_job_column.button("Stop stream job", use_container_width=True):
-        stream_job_id = st.session_state.stream_job_ocid
-        if not stream_job_id:
-            st.error("Start a stream job first.")
-        else:
-            try:
-                with st.spinner("Stopping the OCI Vision stream job..."):
-                    stream_video = stream_job_module.StreamVideo(
-                        compartment_id=st.session_state.compartment_id,
-                        subnet_id=st.session_state.subnet_id,
-                        camera_url=st.session_state.camera_url,
-                        namespace=st.session_state.os_namespace,
-                        bucket=st.session_state.bucket,
-                        prefix=st.session_state.prefix,
-                        oci_config=oci_config,
-                        service_endpoint=service_endpoint,
-                        signer=oci_signer,
-                    )
-                    stream_video.stop_Stream_Job(stream_job_id)
-                st.success(f"Stream job stopped: {stream_job_id}")
-            except (Exception, SystemExit) as error:
-                st.error(f"Could not stop stream job: {error}")
-
-    if exit_job_column.button("Exit", use_container_width=True):
-        stream_job_id = st.session_state.stream_job_ocid
-        stream_group_id = st.session_state.stream_group_ocid
-        stream_source_id = st.session_state.stream_source_ocid
-
-        if not any([stream_job_id, stream_group_id, stream_source_id]):
-            st.warning("No active stream resources to clean up.")
-        else:
-            try:
-                with st.spinner("Stopping and deleting the OCI Vision stream resources..."):
-                    stream_video = stream_job_module.StreamVideo(
-                        compartment_id=st.session_state.compartment_id,
-                        subnet_id=st.session_state.subnet_id,
-                        camera_url=st.session_state.camera_url,
-                        namespace=st.session_state.os_namespace,
-                        bucket=st.session_state.bucket,
-                        prefix=st.session_state.prefix,
-                        oci_config=oci_config,
-                        service_endpoint=service_endpoint,
-                        signer=oci_signer,
-                    )
-
-                    if stream_job_id:
-                        stream_video.stop_Stream_Job(stream_job_id)
-                        logger.info("Stream Job stopped successfully %s", stream_job_id)
-                        stream_video.delete_Stream_Job(stream_job_id)
-                        logger.info("Stream Job deleted successfully %s", stream_job_id)
-                    if stream_group_id:
-                        stream_video.delete_Stream_Group(stream_group_id)
-                        logger.info("Stream Group deleted successfully %s", stream_group_id)
-                    if stream_source_id:
-                        stream_video.delete_Stream_Source(stream_source_id)
-                        logger.info("Stream Source deleted successfully %s", stream_source_id)
-
-                    st.session_state.stream_job_ocid = ""
-                    st.session_state.stream_group_ocid = ""
-                    st.session_state.stream_source_ocid = ""
-                    st.session_state.vision_private_endpoint_ocid = ""
-
-                st.success("Stream resources cleaned up. Closing the browser session...")
-                st.components.v1.html(
-                    """
-                    <script>
-                        try { window.close(); } catch (e) {}
-                        try { window.open('', '_self').close(); } catch (e) {}
-                    </script>
-                    """,
-                    height=0,
-                )
-            except (Exception, SystemExit) as error:
-                st.error(f"Could not exit cleanly: {error}")
-
-    now_local = datetime.now(browser_tz)
-    if (
-        st.session_state.get("replay_tz") != browser_timezone
-        or "replay_date" not in st.session_state
-        or "replay_time" not in st.session_state
-    ):
-        st.session_state.replay_tz = browser_timezone
-        st.session_state.replay_date = now_local.date()
-        st.session_state.replay_time = now_local.time().replace(microsecond=0)
-
-    if st.button("Set to now", help="Set the replay date and time to the current browser-local time"):
-        now_local = datetime.now(browser_tz)
-        st.session_state.replay_date = now_local.date()
-        st.session_state.replay_time = now_local.time().replace(microsecond=0)
-        st.session_state.replay_tz = browser_timezone
-
-    replay_date = st.date_input(
-        "Replay Start Date",
-        key="replay_date",
-        value=st.session_state.replay_date,
-    )
-    replay_time = st.time_input(
-        "Replay Start Time (Browser timezone)",
-        key="replay_time",
-        value=st.session_state.replay_time,
-        step=timedelta(minutes=1),
-    )
-    replay_start_local = datetime.combine(replay_date, replay_time, tzinfo=browser_tz)
-    replay_start = replay_start_local.astimezone(timezone.utc)
-    st.session_state.replay_start_timestamp_ns = datetime_to_unix_ns(replay_start)
-    st.caption(f"Replay start (UTC): {replay_start:%Y-%m-%d %H:%M:%S %Z}")
-    st.caption(f"Replay start (Unix ns): {st.session_state.replay_start_timestamp_ns}")
-
-with col2:
-    frame_placeholder = st.empty()
-    frame_placeholder.markdown('<div class="video-box"><p>🎥 Waiting for stream...</p></div>', unsafe_allow_html=True)
 
 def toggle_streaming():
     st.session_state.streaming = not st.session_state.streaming
     st.session_state.start_stop_label = "⏹️ Stop Consumption" if st.session_state.streaming else "▶️ Start Consumption"
 
-st.button(st.session_state.start_stop_label, on_click=toggle_streaming)
+with col2:
+    replay_controls = st.columns([1, 1.5])
 
-st.markdown("---")
-chart_placeholder = st.empty()
+    with replay_controls[0]:
+        now_local = datetime.now(browser_tz)
+        if (
+            st.session_state.get("replay_tz") != browser_timezone
+            or "replay_date" not in st.session_state
+            or "replay_time" not in st.session_state
+        ):
+            st.session_state.replay_tz = browser_timezone
+            st.session_state.replay_date = now_local.date()
+            st.session_state.replay_time = now_local.time().replace(microsecond=0)
+
+        if st.button("Set to now", help="Set the replay date and time to the current browser-local time", use_container_width=True):
+            now_local = datetime.now(browser_tz)
+            st.session_state.replay_date = now_local.date()
+            st.session_state.replay_time = now_local.time().replace(microsecond=0)
+            st.session_state.replay_tz = browser_timezone
+
+        replay_date = st.date_input(
+            "Replay Start Date",
+            key="replay_date",
+            value=st.session_state.replay_date,
+        )
+        replay_time = st.time_input(
+            "Replay Start Time (Browser timezone)",
+            key="replay_time",
+            value=st.session_state.replay_time,
+            step=timedelta(minutes=1),
+        )
+        replay_start_local = datetime.combine(replay_date, replay_time, tzinfo=browser_tz)
+        replay_start = replay_start_local.astimezone(timezone.utc)
+        st.session_state.replay_start_timestamp_ns = datetime_to_unix_ns(replay_start)
+
+    with replay_controls[1]:
+        top_action_row = st.columns([1.2, 1.2])
+
+        with top_action_row[0]:
+            if st.button("Start stream job", use_container_width=True):
+                required_job_inputs = [
+                    st.session_state.compartment_id,
+                    st.session_state.subnet_id,
+                    st.session_state.camera_url,
+                    st.session_state.os_namespace,
+                    st.session_state.bucket,
+                ]
+                if not all(required_job_inputs):
+                    st.error("Provide the compartment, subnet, camera URL, namespace, and bucket to create a stream job.")
+                else:
+                    try:
+                        with st.spinner("Creating or starting the OCI Vision stream job..."):
+                            stream_video = stream_job_module.StreamVideo(
+                                compartment_id=st.session_state.compartment_id,
+                                subnet_id=st.session_state.subnet_id,
+                                camera_url=st.session_state.camera_url,
+                                namespace=st.session_state.os_namespace,
+                                bucket=st.session_state.bucket,
+                                prefix=st.session_state.prefix,
+                                oci_config=oci_config,
+                                service_endpoint=service_endpoint,
+                                signer=oci_signer,
+                            )
+
+                            if not st.session_state.vision_private_endpoint_ocid:
+                                active_endpoints = stream_video.client.list_vision_private_endpoints(
+                                    compartment_id=st.session_state.compartment_id,
+                                    lifecycle_state="ACTIVE",
+                                ).data.items
+                                matching_endpoint = next(
+                                    (endpoint for endpoint in active_endpoints
+                                     if endpoint.subnet_id == st.session_state.subnet_id),
+                                    None,
+                                )
+                                st.session_state.vision_private_endpoint_ocid = (
+                                    matching_endpoint.id if matching_endpoint
+                                    else stream_video.create_private_endpoint()
+                                )
+
+                            if not st.session_state.stream_source_ocid:
+                                st.session_state.stream_source_ocid = stream_video.create_Stream_Source(
+                                    st.session_state.vision_private_endpoint_ocid
+                                )
+                            if not st.session_state.stream_job_ocid:
+                                st.session_state.stream_job_ocid = stream_video.create_Stream_Job(
+                                    st.session_state.stream_source_ocid
+                                )
+                            if not st.session_state.stream_group_ocid:
+                                st.session_state.stream_group_ocid = stream_video.create_Stream_Group(
+                                    st.session_state.stream_source_ocid
+                                )
+                            stream_job_id = st.session_state.stream_job_ocid
+
+                            stream_video.start_Stream_Job(stream_job_id)
+                            st.session_state.stream_job_ocid = stream_job_id
+                        st.success(f"Stream job started: {st.session_state.stream_job_ocid}")
+                    except (Exception, SystemExit) as error:
+                        st.error(f"Could not start stream job: {error}")
+
+        with top_action_row[1]:
+            st.button(st.session_state.start_stop_label, on_click=toggle_streaming, use_container_width=True)
+
+        bottom_action_row = st.columns([1.2, 1.2])
+
+        with bottom_action_row[0]:
+            if st.button("Stop stream job", use_container_width=True):
+                stream_job_id = st.session_state.stream_job_ocid
+                if not stream_job_id:
+                    st.error("Start a stream job first.")
+                else:
+                    try:
+                        with st.spinner("Stopping the OCI Vision stream job..."):
+                            stream_video = stream_job_module.StreamVideo(
+                                compartment_id=st.session_state.compartment_id,
+                                subnet_id=st.session_state.subnet_id,
+                                camera_url=st.session_state.camera_url,
+                                namespace=st.session_state.os_namespace,
+                                bucket=st.session_state.bucket,
+                                prefix=st.session_state.prefix,
+                                oci_config=oci_config,
+                                service_endpoint=service_endpoint,
+                                signer=oci_signer,
+                            )
+                            stream_video.stop_Stream_Job(stream_job_id)
+                        st.success(f"Stream job stopped: {stream_job_id}")
+                    except (Exception, SystemExit) as error:
+                        st.error(f"Could not stop stream job: {error}")
+
+        with bottom_action_row[1]:
+            if st.button("Exit", use_container_width=True):
+                stream_job_id = st.session_state.stream_job_ocid
+                stream_group_id = st.session_state.stream_group_ocid
+                stream_source_id = st.session_state.stream_source_ocid
+
+                if not any([stream_job_id, stream_group_id, stream_source_id]):
+                    st.warning("No active stream resources to clean up.")
+                else:
+                    try:
+                        with st.spinner("Stopping and deleting the OCI Vision stream resources..."):
+                            stream_video = stream_job_module.StreamVideo(
+                                compartment_id=st.session_state.compartment_id,
+                                subnet_id=st.session_state.subnet_id,
+                                camera_url=st.session_state.camera_url,
+                                namespace=st.session_state.os_namespace,
+                                bucket=st.session_state.bucket,
+                                prefix=st.session_state.prefix,
+                                oci_config=oci_config,
+                                service_endpoint=service_endpoint,
+                                signer=oci_signer,
+                            )
+
+                            if stream_job_id:
+                                stream_video.stop_Stream_Job(stream_job_id)
+                                logger.info("Stream Job stopped successfully %s", stream_job_id)
+                                stream_video.delete_Stream_Job(stream_job_id)
+                                logger.info("Stream Job deleted successfully %s", stream_job_id)
+                            if stream_group_id:
+                                stream_video.delete_Stream_Group(stream_group_id)
+                                logger.info("Stream Group deleted successfully %s", stream_group_id)
+                            if stream_source_id:
+                                stream_video.delete_Stream_Source(stream_source_id)
+                                logger.info("Stream Source deleted successfully %s", stream_source_id)
+
+                            st.session_state.stream_job_ocid = ""
+                            st.session_state.stream_group_ocid = ""
+                            st.session_state.stream_source_ocid = ""
+                            st.session_state.vision_private_endpoint_ocid = ""
+
+                        st.success("Stream resources cleaned up. Closing the browser session...")
+                        st.components.v1.html(
+                            """
+                            <script>
+                                try { window.close(); } catch (e) {}
+                                try { window.open('', '_self').close(); } catch (e) {}
+                            </script>
+                            """,
+                            height=0,
+                        )
+                    except (Exception, SystemExit) as error:
+                        st.error(f"Could not exit cleanly: {error}")
+
+    frame_placeholder = st.empty()
+    frame_placeholder.markdown('<div class="video-box"><p>🎥 Waiting for stream...</p></div>', unsafe_allow_html=True)
+
+    st.markdown("---")
+    chart_placeholder = st.empty()
 
 try:
     if st.session_state.streaming:

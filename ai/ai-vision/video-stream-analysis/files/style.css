@@ -1,6 +1,11 @@
 [data-testid="collapsedControl"] { display: none; }
 header, footer, #MainMenu { visibility: hidden; }
 
+div.block-container {
+    padding-top: 4rem !important;
+    padding-bottom: 1rem !important;
+}
+
 .video-box {
     width: 100%;
     max-width: 800px;
@@ -11,7 +16,7 @@ header, footer, #MainMenu { visibility: hidden; }
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 20px auto;
+    margin: 10px auto;
 }
 .video-box p { color: white; font-size: 20px; }
 
@@ -33,7 +38,7 @@ button[kind="primary"]:hover {
     top: 0px;
     width: 100%;
     background-color: #454E50;
-    padding: 15px;
+    padding: 6px 12px;
     border-radius: 0 0 10px 10px;
     display: flex;
     align-items: center;
@@ -43,12 +48,12 @@ button[kind="primary"]:hover {
 }
 .banner h1 {
     color: #fff;
-    font-size: 2rem !important;
+    font-size: 1.2rem !important;
     font-weight: 700 !important;
     margin: 0;
 }
 .banner img {
-    height: 60px;
-    width: 60px;
-    margin-right: 15px;
+    height: 30px;
+    width: 30px;
+    margin-right: 10px;
 }
