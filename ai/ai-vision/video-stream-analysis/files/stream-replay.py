@@ -42,14 +42,14 @@ with open("style.css") as f:
 # ----------------- Session Defaults -----------------
 defaults = {
     "stream_job_ocid": "",
-    "stream_job_ocid_input": "",
     "stream_source_ocid": "",
     "stream_group_ocid": "",
     "vision_private_endpoint_ocid": "",
-    "compartment_id": "",
-    "subnet_id": "",
+    #Set default compartment and subnet IDs to AI/vison and apps subnet in Reston hybrid cloud vcn
+    "compartment_id": "ocid1.compartment.oc1..aaaaaaaapgqifmxumyd7b5c7khdxonpyspwyicb7ypxbb5wwfjbejhv5wd6q",
+    "subnet_id": "ocid1.subnet.oc1.iad.aaaaaaaacjklspy6wqwhwdvgs6dtijxqocbpmmsn6hoghynausqfpjqkc2sq",
     "camera_url": "",
-    "bucket": "",
+    "bucket": "streamVidBkt",
     "prefix": "",
     "os_namespace": "",
     "streaming": False,
@@ -69,6 +69,13 @@ for k, v in defaults.items():
 oci_signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
 oci_config = {"region": oci_signer.region}
 service_endpoint = f"https://vision.aiservice.{oci_config['region']}.oci.oraclecloud.com"
+
+try:
+    object_storage_client = oci.object_storage.ObjectStorageClient(oci_config, signer=oci_signer)
+    if not st.session_state.os_namespace:
+        st.session_state.os_namespace = object_storage_client.get_namespace().data
+except Exception:
+    pass
 
 stream_job_spec = importlib.util.spec_from_file_location(
     "stream_job_module",
@@ -292,20 +299,18 @@ with col1:
     st.session_state.mode = st.radio(
         "Detection Mode",
         [DetectionMode.OBJECT.value, DetectionMode.FACE.value],
-        index=0
+        index=1
     )
 
-    st.text_input("Existing Stream Job OCID (optional)", key="stream_job_ocid_input")
     st.text_input("Compartment OCID", key="compartment_id")
     st.text_input("Subnet OCID", key="subnet_id")
     st.text_input("Camera URL", key="camera_url")
-    st.session_state.bucket = st.text_input("Bucket Name")
+    st.text_input("Bucket Name", key="bucket")
     st.session_state.prefix = st.text_input("Prefix")
-    st.session_state.os_namespace = st.text_input("Object Storage Namespace")
+    st.text_input("Object Storage Namespace", key="os_namespace")
 
     start_job_column, stop_job_column = st.columns(2)
     if start_job_column.button("Start stream job", use_container_width=True):
-        existing_job_id = st.session_state.stream_job_ocid_input.strip()
         required_job_inputs = [
             st.session_state.compartment_id,
             st.session_state.subnet_id,
@@ -313,8 +318,8 @@ with col1:
             st.session_state.os_namespace,
             st.session_state.bucket,
         ]
-        if not existing_job_id and not all(required_job_inputs):
-            st.error("Enter an existing Stream Job OCID or provide the compartment, subnet, camera URL, namespace, and bucket to create one.")
+        if not all(required_job_inputs):
+            st.error("Provide the compartment, subnet, camera URL, namespace, and bucket to create a stream job.")
         else:
             try:
                 with st.spinner("Creating or starting the OCI Vision stream job..."):
@@ -330,37 +335,34 @@ with col1:
                         signer=oci_signer,
                     )
 
-                    if existing_job_id:
-                        stream_job_id = existing_job_id
-                    else:
-                        if not st.session_state.vision_private_endpoint_ocid:
-                            active_endpoints = stream_video.client.list_vision_private_endpoints(
-                                compartment_id=st.session_state.compartment_id,
-                                lifecycle_state="ACTIVE",
-                            ).data.items
-                            matching_endpoint = next(
-                                (endpoint for endpoint in active_endpoints
-                                 if endpoint.subnet_id == st.session_state.subnet_id),
-                                None,
-                            )
-                            st.session_state.vision_private_endpoint_ocid = (
-                                matching_endpoint.id if matching_endpoint
-                                else stream_video.create_private_endpoint()
-                            )
+                    if not st.session_state.vision_private_endpoint_ocid:
+                        active_endpoints = stream_video.client.list_vision_private_endpoints(
+                            compartment_id=st.session_state.compartment_id,
+                            lifecycle_state="ACTIVE",
+                        ).data.items
+                        matching_endpoint = next(
+                            (endpoint for endpoint in active_endpoints
+                             if endpoint.subnet_id == st.session_state.subnet_id),
+                            None,
+                        )
+                        st.session_state.vision_private_endpoint_ocid = (
+                            matching_endpoint.id if matching_endpoint
+                            else stream_video.create_private_endpoint()
+                        )
 
-                        if not st.session_state.stream_source_ocid:
-                            st.session_state.stream_source_ocid = stream_video.create_Stream_Source(
-                                st.session_state.vision_private_endpoint_ocid
-                            )
-                        if not st.session_state.stream_job_ocid:
-                            st.session_state.stream_job_ocid = stream_video.create_Stream_Job(
-                                st.session_state.stream_source_ocid
-                            )
-                        if not st.session_state.stream_group_ocid:
-                            st.session_state.stream_group_ocid = stream_video.create_Stream_Group(
-                                st.session_state.stream_source_ocid
-                            )
-                        stream_job_id = st.session_state.stream_job_ocid
+                    if not st.session_state.stream_source_ocid:
+                        st.session_state.stream_source_ocid = stream_video.create_Stream_Source(
+                            st.session_state.vision_private_endpoint_ocid
+                        )
+                    if not st.session_state.stream_job_ocid:
+                        st.session_state.stream_job_ocid = stream_video.create_Stream_Job(
+                            st.session_state.stream_source_ocid
+                        )
+                    if not st.session_state.stream_group_ocid:
+                        st.session_state.stream_group_ocid = stream_video.create_Stream_Group(
+                            st.session_state.stream_source_ocid
+                        )
+                    stream_job_id = st.session_state.stream_job_ocid
 
                     stream_video.start_Stream_Job(stream_job_id)
                     st.session_state.stream_job_ocid = stream_job_id
@@ -369,12 +371,9 @@ with col1:
                 st.error(f"Could not start stream job: {error}")
 
     if stop_job_column.button("Stop stream job", use_container_width=True):
-        stream_job_id = (
-            st.session_state.stream_job_ocid_input.strip()
-            or st.session_state.stream_job_ocid
-        )
+        stream_job_id = st.session_state.stream_job_ocid
         if not stream_job_id:
-            st.error("Enter a Stream Job OCID or start a stream job first.")
+            st.error("Start a stream job first.")
         else:
             try:
                 with st.spinner("Stopping the OCI Vision stream job..."):
