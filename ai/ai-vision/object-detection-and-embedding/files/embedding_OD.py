@@ -1,5 +1,6 @@
 import streamlit as st
 import base64
+import configparser
 import numpy as np
 import oci
 import cv2
@@ -90,21 +91,26 @@ st.markdown(custom_css, unsafe_allow_html=True)
 #-------------------------#
 # DB + OCI Client Config #
 #-------------------------#
+LOCAL_CONFIG_PATH = BASE_DIR / "config.local"
+local_config = configparser.ConfigParser(interpolation=None)
+if not local_config.read(LOCAL_CONFIG_PATH):
+    raise FileNotFoundError(f"Local configuration file not found: {LOCAL_CONFIG_PATH}")
+
+database_config = local_config["database"]
+oci_app_config = local_config["oci"]
+
 conn = oracledb.connect(
-    user="",
-    password="",
-    dsn="",
-    config_dir=str(WALLET_DIR),
-    wallet_location=str(WALLET_DIR),
-    wallet_password=""
+    user=database_config["user"],
+    password=database_config["password"],
+    dsn=database_config["dsn"],
 )
 cursor = conn.cursor()
 
-OCI_CONFIG_PATH = ""
-COMPARTMENT_ID = ""
-EMBED_MODEL_ID = "cohere.embed-v4.0"
-OD_MODEL_ID = ""
-GENAI_ENDPOINT = ""
+OCI_CONFIG_PATH = os.path.expanduser(oci_app_config["config_path"])
+COMPARTMENT_ID = oci_app_config["compartment_id"]
+EMBED_MODEL_ID = oci_app_config["embed_model_id"]
+OD_MODEL_ID = oci_app_config["object_detection_model_id"]
+GENAI_ENDPOINT = oci_app_config["generative_ai_endpoint"]
 
 config = oci.config.from_file(OCI_CONFIG_PATH)
 genai_client = oci.generative_ai_inference.GenerativeAiInferenceClient(
