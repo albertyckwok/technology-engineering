@@ -65,10 +65,15 @@ The Streamlit app expects the following directory structure (see additional stri
 
 ## 3. Database Setup (Vector Table)
 
-### 3.1 Download the Wallet
+### 3.1 Database Connection info
 
-- Download the Autonomous Database wallet from OCI Console
-- Unzip it into `Wallet_DB/`
+You need to do either TLS (simpler but less secure) or mTLS as follow:
+- For TLS, you just need the following info
+  1. DB user and password, default ADMIN works but it is not recommended.
+  2. TLS connection string for tp (Transaction Processing)
+- For mTLS
+  1. Download the Autonomous Database wallet from OCI Console
+  2. Unzip it into `Wallet_DB/`
 
 ---
 
@@ -76,6 +81,7 @@ The Streamlit app expects the following directory structure (see additional stri
 
 Create a table to store labels and embeddings.
 - Below is the schema that I used for the demo (modifications here will need to be reflected in the app)
+  - **Note**: run the following using DB user that you are going to use to connect to the DB
 
 ```
 CREATE TABLE image_vectors (
@@ -99,7 +105,7 @@ Before running the application, update the required configuration variables insi
 
 ## 🔧 Configuration
 
-Fill in the following variables in the code:
+Create config.local base on [config.sample](config.sample), fill in the following variables in the file:
 
 - **`OCI_CONFIG_PATH`**  
   Path to your local OCI configuration file (usually located at `~/.oci/config` on macOS/Linux or `C:\\Users\\<your-user>\\.oci\\config` on Windows).
@@ -114,7 +120,7 @@ Fill in the following variables in the code:
   ```
 
 - **`OD_MODEL_ID`**  
-  The OCID of your custom Vision **Object Detection** model created in OCI.
+  The OCID of your custom Vision **Object Detection** model created in OCI. This is optional as it is default to use pretrained model.
 
 - **`GENAI_ENDPOINT`**  
   The inference endpoint for OCI Generative AI. Example:
