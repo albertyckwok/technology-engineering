@@ -109,7 +109,7 @@ cursor = conn.cursor()
 OCI_CONFIG_PATH = os.path.expanduser(oci_app_config["config_path"])
 COMPARTMENT_ID = oci_app_config["compartment_id"]
 EMBED_MODEL_ID = oci_app_config["embed_model_id"]
-OD_MODEL_ID = oci_app_config["object_detection_model_id"]
+#OD_MODEL_ID = oci_app_config["object_detection_model_id"]
 GENAI_ENDPOINT = oci_app_config["generative_ai_endpoint"]
 
 config = oci.config.from_file(OCI_CONFIG_PATH)
@@ -269,11 +269,12 @@ elif view == "🔎 Object Detection + Search":
         with st.spinner("Running object detection..."):
             response = vision_client.analyze_image(
                 analyze_image_details=oci.ai_vision.models.AnalyzeImageDetails(
-                    features=[oci.ai_vision.models.ImageObjectDetectionFeature(
-                        feature_type="OBJECT_DETECTION",
-                        max_results=20,
-                        model_id=OD_MODEL_ID
-                    )],
+                    features=[
+                        oci.ai_vision.models.ImageClassificationFeature(),
+                        oci.ai_vision.models.ImageObjectDetectionFeature(),
+                        oci.ai_vision.models.ImageTextDetectionFeature(),
+                        oci.ai_vision.models.FaceDetectionFeature()
+                    ],
                     image=oci.ai_vision.models.InlineImageDetails(
                         source="INLINE",
                         data=base64.b64encode(image_bytes).decode()

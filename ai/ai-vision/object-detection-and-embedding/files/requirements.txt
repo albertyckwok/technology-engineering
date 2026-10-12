@@ -1,5 +1,5 @@
 numpy==1.26.4
-oci==2.164.0
+oci
 opencv_python==4.8.0.74
 oracledb==3.4.2
 pandas==2.2.3

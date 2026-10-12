@@ -7,5 +7,6 @@ dsn = (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port
 config_path = ~/.oci/config
 compartment_id = <comp_id_ocid1.compartment.oc1..a>
 embed_model_id = cohere.embed-v4.0
-object_detection_model_id = <ocid1.aivisionmodel.oc1...>
+#optional custom object_detection model
+#object_detection_model_id = <ocid1.aivisionmodel.oc1...>
 generative_ai_endpoint = https://inference.generativeai.us-ashburn-1.oci.oraclecloud.com
